@@ -9,11 +9,12 @@
 - [x] Unit 1.3: Save and load board.json
 - [x] Unit 1.4: Get next available task
 - [x] Unit 1.5: Task state transitions
+- [x] Unit 2.1: CLI entry point with init command
 
 ## In Progress
-- [ ] Unit 2.1: CLI entry point with init command
 
 ## Pending
+- [ ] Unit 2.2: Status command
 - [ ] Unit 2.2: Status command
 - [ ] Unit 2.3: Show command
 - [ ] Unit 2.4: Reset command

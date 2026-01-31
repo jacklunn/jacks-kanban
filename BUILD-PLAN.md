@@ -535,7 +535,7 @@ def reset_task(board: dict, task_id: str) -> None:
 
 ## Phase 2: CLI Commands
 
-### Unit 2.1: CLI entry point with init command
+### Unit 2.1: [DONE] CLI entry point with init command
 
 Create the Click-based CLI with `kanban init` command.
 

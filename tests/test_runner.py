@@ -1,4 +1,4 @@
-from jacks_kanban.runner import build_prompt
+from jacks_kanban.runner import build_prompt, execute_claude
 
 
 def test_build_prompt():
@@ -33,3 +33,34 @@ def test_build_prompt_includes_commit_message():
     prompt = build_prompt(task, "DESIGN.md")
 
     assert "feat: initial setup" in prompt
+
+
+def test_execute_claude_captures_log(tmp_path, mocker):
+    # Mock subprocess to avoid actually calling claude
+    mock_run = mocker.patch("jacks_kanban.runner.subprocess.run")
+    mock_run.return_value.returncode = 0
+
+    log_file = tmp_path / "claude.log"
+
+    returncode = execute_claude("test prompt", log_file, project_dir=tmp_path)
+
+    assert returncode == 0
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args
+    cmd = call_args[0][0]
+    assert "claude" in cmd
+    assert "--output-format" in cmd
+    assert "stream-json" in cmd
+    assert "-p" in cmd
+    assert call_args[1]["cwd"] == tmp_path
+
+
+def test_execute_claude_returns_nonzero_on_failure(tmp_path, mocker):
+    mock_run = mocker.patch("jacks_kanban.runner.subprocess.run")
+    mock_run.return_value.returncode = 1
+
+    log_file = tmp_path / "claude.log"
+
+    returncode = execute_claude("test prompt", log_file, project_dir=tmp_path)
+
+    assert returncode == 1

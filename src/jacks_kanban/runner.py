@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 
@@ -25,3 +26,24 @@ def build_prompt(task: dict, design_doc: str) -> str:
 - The design doc has all the details you need
 
 Begin now."""
+
+
+def execute_claude(prompt: str, log_file: Path, project_dir: Path) -> int:
+    """Execute Claude CLI and capture output to log file."""
+    cmd = [
+        "claude",
+        "-p", prompt,
+        "--output-format", "stream-json",
+        "--verbose",
+        "--allowedTools", "Read,Write,Edit,MultiEdit,Bash,Glob,Grep",
+    ]
+
+    with open(log_file, "w") as f:
+        result = subprocess.run(
+            cmd,
+            stdout=f,
+            stderr=subprocess.STDOUT,
+            cwd=project_dir,
+        )
+
+    return result.returncode

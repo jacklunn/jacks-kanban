@@ -1,5 +1,9 @@
+import json
 import yaml
 from pathlib import Path
+
+KANBAN_DIR = ".kanban"
+BOARD_FILE = "board.json"
 
 
 def load_config(project_dir: Path) -> dict:
@@ -35,3 +39,24 @@ def init_board(project_dir: Path) -> dict:
         })
 
     return board
+
+
+def get_board_path(project_dir: Path) -> Path:
+    return project_dir / KANBAN_DIR / BOARD_FILE
+
+
+def save_board(project_dir: Path, board: dict) -> None:
+    """Save board state to .kanban/board.json."""
+    board_path = get_board_path(project_dir)
+    board_path.parent.mkdir(exist_ok=True)
+    with open(board_path, "w") as f:
+        json.dump(board, f, indent=2)
+
+
+def load_board(project_dir: Path) -> dict:
+    """Load board state from .kanban/board.json."""
+    board_path = get_board_path(project_dir)
+    if not board_path.exists():
+        return init_board(project_dir)
+    with open(board_path) as f:
+        return json.load(f)

@@ -1,4 +1,4 @@
-from jacks_kanban.board import load_config, init_board
+from jacks_kanban.board import load_config, init_board, save_board, load_board
 
 
 def test_load_config(tmp_project, sample_kanban_yaml):
@@ -19,6 +19,32 @@ def test_init_board(tmp_project, sample_kanban_yaml):
 
     assert board["project"] == "TestProject"
     assert len(board["tasks"]) == 3
+    assert all(t["status"] == "pending" for t in board["tasks"])
+
+
+def test_save_and_load_board(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+    kanban_dir = tmp_project / ".kanban"
+    kanban_dir.mkdir()
+
+    board = init_board(tmp_project)
+    board["tasks"][0]["status"] = "completed"
+
+    save_board(tmp_project, board)
+    loaded = load_board(tmp_project)
+
+    assert loaded["tasks"][0]["status"] == "completed"
+
+
+def test_load_board_initializes_when_missing(tmp_project, sample_kanban_yaml):
+    """load_board falls back to init_board when board.json doesn't exist."""
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = load_board(tmp_project)
+
+    assert board["project"] == "TestProject"
     assert all(t["status"] == "pending" for t in board["tasks"])
 
 

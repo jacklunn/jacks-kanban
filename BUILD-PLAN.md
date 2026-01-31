@@ -1423,7 +1423,7 @@ The schema doc for Claude to generate tasks.
 
 ---
 
-### Unit 5.2: Create README.md
+### Unit 5.2: [DONE] Create README.md
 
 **Content:**
 ```markdown

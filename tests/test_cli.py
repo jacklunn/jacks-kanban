@@ -2,7 +2,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 from jacks_kanban.cli import main
-from jacks_kanban.board import init_board, save_board, start_task, complete_task, fail_task
+from jacks_kanban.board import init_board, save_board, load_board, get_task, start_task, complete_task, fail_task
 
 
 def test_cli_help():
@@ -91,3 +91,50 @@ def test_init_does_not_overwrite_existing_kanban_yaml(tmp_path):
         assert result.exit_code == 0
         assert Path("kanban.yaml").read_text() == "project: Existing"
         assert "already exists" in result.output
+
+
+def test_show_task(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["show", "0.1"])
+
+        assert result.exit_code == 0
+        assert "First task" in result.output
+        assert "pending" in result.output
+        assert "0.1" in result.output
+        assert "Setup" in result.output
+        assert "test -f setup.txt" in result.output
+        assert "feat: setup" in result.output
+
+
+def test_show_task_not_found(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["show", "99.99"])
+
+        assert result.exit_code == 1
+        assert "not found" in result.output
+
+
+def test_show_task_with_failure_reason(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        board = init_board(Path.cwd())
+        start_task(board, "0.1")
+        fail_task(board, "0.1", reason="Tests did not pass")
+        save_board(Path.cwd(), board)
+
+        result = runner.invoke(main, ["show", "0.1"])
+
+        assert result.exit_code == 0
+        assert "failed" in result.output
+        assert "Tests did not pass" in result.output

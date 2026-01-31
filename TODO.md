@@ -11,11 +11,11 @@
 - [x] Unit 1.5: Task state transitions
 - [x] Unit 2.1: CLI entry point with init command
 - [x] Unit 2.2: Status command
+- [x] Unit 2.3: Show command
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 2.3: Show command
 - [ ] Unit 2.4: Reset command
 - [ ] Unit 3.1: Build prompt from task
 - [ ] Unit 3.2: Execute Claude and capture output

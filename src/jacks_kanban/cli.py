@@ -4,7 +4,7 @@ import click
 from importlib import resources
 from pathlib import Path
 
-from jacks_kanban.board import load_board, get_next_task
+from jacks_kanban.board import load_board, get_next_task, get_task
 
 
 @click.group()
@@ -66,6 +66,29 @@ def status():
     next_task = get_next_task(board)
     if next_task:
         click.echo(f"\nNext: [{next_task['id']}] {next_task['name']}")
+
+
+@main.command()
+@click.argument("task_id")
+def show(task_id):
+    """Show details of a specific task."""
+    project_dir = Path.cwd()
+    board = load_board(project_dir)
+
+    task = get_task(board, task_id)
+    if not task:
+        click.echo(f"Task {task_id} not found", err=True)
+        raise SystemExit(1)
+
+    click.echo(f"Task: {task['id']} - {task['name']}")
+    click.echo(f"Phase: {task['phase']}")
+    click.echo(f"Status: {task['status']}")
+    click.echo(f"Section: {task.get('section', 'N/A')}")
+    click.echo(f"Dependencies: {task.get('deps', [])}")
+    click.echo(f"Verify: {task['verify']}")
+    click.echo(f"Commit: {task['commit']}")
+    if task.get("failure_reason"):
+        click.echo(f"Failure: {task['failure_reason']}")
 
 
 if __name__ == "__main__":

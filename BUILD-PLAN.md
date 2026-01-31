@@ -1163,7 +1163,7 @@ def launch_watch_mode(project_dir: Path, max_tasks: int = None):
 
 ## Phase 4: Sync and Utilities
 
-### Unit 4.1: Sync command
+### Unit 4.1: [DONE] Sync command
 
 Add `kanban sync` to verify tasks against codebase.
 

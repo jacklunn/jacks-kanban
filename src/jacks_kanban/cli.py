@@ -8,6 +8,7 @@ from pathlib import Path
 from jacks_kanban.board import load_board, save_board, get_next_task, get_task, reset_task
 from jacks_kanban.runner import run_loop, run_task
 from jacks_kanban.sync import sync_board
+from jacks_kanban.stream_log import process_stream
 
 
 @click.group()
@@ -167,6 +168,12 @@ def run(loop, watch, max_tasks):
         log_callback("start", task)
         success = run_task(project_dir, board, task)
         log_callback("complete" if success else "fail", task)
+
+
+@main.command("stream-log")
+def stream_log():
+    """Format claude.log stream for display. Pipe stdin."""
+    process_stream()
 
 
 def launch_watch_mode(project_dir: Path, max_tasks: int = None):

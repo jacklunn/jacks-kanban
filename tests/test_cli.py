@@ -351,3 +351,71 @@ def test_sync_fixes_failed_task(tmp_path, sample_kanban_yaml):
         board = load_board(Path.cwd())
         assert board["tasks"][0]["status"] == "completed"
         assert board["tasks"][0].get("failure_reason") is None
+
+
+def test_stream_log_parses_json():
+    """Test kanban stream-log parses JSON stream lines and formats tool use."""
+    runner = CliRunner()
+    log_line = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"test.py"}}]}}'
+
+    result = runner.invoke(main, ["stream-log"], input=log_line)
+
+    assert result.exit_code == 0
+    assert "Write" in result.output
+    assert "test.py" in result.output
+
+
+def test_stream_log_parses_bash():
+    """Test kanban stream-log formats Bash tool use with command."""
+    runner = CliRunner()
+    log_line = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"pytest tests/ -v"}}]}}'
+
+    result = runner.invoke(main, ["stream-log"], input=log_line)
+
+    assert result.exit_code == 0
+    assert "Bash" in result.output
+    assert "pytest tests/ -v" in result.output
+
+
+def test_stream_log_parses_result():
+    """Test kanban stream-log formats result lines."""
+    runner = CliRunner()
+    log_line = '{"type":"result","is_error":false,"result":"Done","duration_ms":5000,"total_cost_usd":0.0123,"num_turns":3}'
+
+    result = runner.invoke(main, ["stream-log"], input=log_line)
+
+    assert result.exit_code == 0
+    assert "SUCCESS" in result.output
+    assert "0.0123" in result.output
+
+
+def test_stream_log_parses_error_result():
+    """Test kanban stream-log formats error result lines."""
+    runner = CliRunner()
+    log_line = '{"type":"result","is_error":true,"result":"Test failed","duration_ms":3000,"total_cost_usd":0.005}'
+
+    result = runner.invoke(main, ["stream-log"], input=log_line)
+
+    assert result.exit_code == 0
+    assert "FAILED" in result.output
+
+
+def test_stream_log_ignores_invalid_json():
+    """Test kanban stream-log ignores non-JSON lines gracefully."""
+    runner = CliRunner()
+    input_lines = "not json at all\n{}\n"
+
+    result = runner.invoke(main, ["stream-log"], input=input_lines)
+
+    assert result.exit_code == 0
+
+
+def test_stream_log_other_tool():
+    """Test kanban stream-log formats non-file tools."""
+    runner = CliRunner()
+    log_line = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{"pattern":"TODO"}}]}}'
+
+    result = runner.invoke(main, ["stream-log"], input=log_line)
+
+    assert result.exit_code == 0
+    assert "Grep" in result.output

@@ -76,7 +76,7 @@ jacks-kanban/
 
 ## Phase 0: Project Setup
 
-### Unit 0.1: Initialize Python package
+### Unit 0.1: [DONE] Initialize Python package
 
 Create the basic package structure with pyproject.toml.
 

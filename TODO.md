@@ -20,9 +20,9 @@
 - [x] Unit 3.5: Task loop
 - [x] Unit 3.6: Run command in CLI
 - [x] Unit 4.1: Sync command
+- [x] Unit 4.2: Stream-log command
 
 ## In Progress
-- [ ] Unit 4.2: Stream-log command
 
 ## Pending
 - [ ] Unit 4.3: Dashboard command

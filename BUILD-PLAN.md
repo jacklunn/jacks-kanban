@@ -1251,7 +1251,7 @@ def sync():
 
 ---
 
-### Unit 4.2: Stream-log command
+### Unit 4.2: [DONE] Stream-log command
 
 Add `kanban stream-log` for piping claude.log.
 

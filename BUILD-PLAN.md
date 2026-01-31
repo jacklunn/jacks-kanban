@@ -664,7 +664,7 @@ def status():
 
 ---
 
-### Unit 2.3: Show command
+### Unit 2.3: [DONE] Show command
 
 Add `kanban show <task_id>` to display task details.
 

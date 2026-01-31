@@ -831,7 +831,7 @@ Begin now."""
 
 ---
 
-### Unit 3.2: Execute Claude and capture output
+### Unit 3.2: [DONE] Execute Claude and capture output
 
 Add function to run Claude CLI and capture stream-json output.
 

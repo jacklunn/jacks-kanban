@@ -1014,7 +1014,7 @@ def run_task(project_dir: Path, board: dict, task: dict) -> bool:
 
 ---
 
-### Unit 3.5: Task loop
+### Unit 3.5: [DONE] Task loop
 
 Implement the main loop that runs tasks until done or failure.
 

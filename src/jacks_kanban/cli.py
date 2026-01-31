@@ -4,7 +4,7 @@ import click
 from importlib import resources
 from pathlib import Path
 
-from jacks_kanban.board import load_board, get_next_task, get_task
+from jacks_kanban.board import load_board, save_board, get_next_task, get_task, reset_task
 
 
 @click.group()
@@ -89,6 +89,28 @@ def show(task_id):
     click.echo(f"Commit: {task['commit']}")
     if task.get("failure_reason"):
         click.echo(f"Failure: {task['failure_reason']}")
+
+
+@main.command()
+@click.argument("task_id", required=False)
+@click.option("--all", "reset_all", is_flag=True, help="Reset all tasks")
+def reset(task_id, reset_all):
+    """Reset task(s) to pending state."""
+    project_dir = Path.cwd()
+    board = load_board(project_dir)
+
+    if reset_all:
+        for task in board["tasks"]:
+            reset_task(board, task["id"])
+        save_board(project_dir, board)
+        click.echo(f"Reset all {len(board['tasks'])} tasks to pending")
+    elif task_id:
+        reset_task(board, task_id)
+        save_board(project_dir, board)
+        click.echo(f"Reset task {task_id} to pending")
+    else:
+        click.echo("Specify a task_id or use --all", err=True)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

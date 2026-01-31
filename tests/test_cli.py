@@ -2,7 +2,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 from jacks_kanban.cli import main
-from jacks_kanban.board import init_board, save_board, load_board, get_task, start_task, complete_task, fail_task
+from jacks_kanban.board import init_board, save_board, load_board, get_task, start_task, complete_task, fail_task, reset_task
 
 
 def test_cli_help():
@@ -138,3 +138,60 @@ def test_show_task_with_failure_reason(tmp_path, sample_kanban_yaml):
         assert result.exit_code == 0
         assert "failed" in result.output
         assert "Tests did not pass" in result.output
+
+
+def test_reset_task(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # First complete a task
+        board = init_board(Path.cwd())
+        complete_task(board, "0.1")
+        save_board(Path.cwd(), board)
+
+        # Reset it
+        result = runner.invoke(main, ["reset", "0.1"])
+        assert result.exit_code == 0
+        assert "0.1" in result.output
+        assert "pending" in result.output
+
+        # Verify reset
+        board = load_board(Path.cwd())
+        task = get_task(board, "0.1")
+        assert task["status"] == "pending"
+
+
+def test_reset_all_tasks(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # Complete some tasks
+        board = init_board(Path.cwd())
+        complete_task(board, "0.1")
+        complete_task(board, "0.2")
+        start_task(board, "1.1")
+        save_board(Path.cwd(), board)
+
+        # Reset all
+        result = runner.invoke(main, ["reset", "--all"])
+        assert result.exit_code == 0
+        assert "3" in result.output
+
+        # Verify all reset
+        board = load_board(Path.cwd())
+        for task in board["tasks"]:
+            assert task["status"] == "pending"
+
+
+def test_reset_no_args(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["reset"])
+        assert result.exit_code == 1

@@ -12,11 +12,11 @@
 - [x] Unit 2.1: CLI entry point with init command
 - [x] Unit 2.2: Status command
 - [x] Unit 2.3: Show command
+- [x] Unit 2.4: Reset command
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 2.4: Reset command
 - [ ] Unit 3.1: Build prompt from task
 - [ ] Unit 3.2: Execute Claude and capture output
 - [ ] Unit 3.3: Parse Claude log for result

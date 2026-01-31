@@ -12,9 +12,9 @@ DIM = "\033[2m"
 RESET = "\033[0m"
 
 
-def render_dashboard(project_dir: Path):
+def render_dashboard(project_dir: Path, config_file: str = "kanban.yaml"):
     """Render the dashboard display."""
-    board = load_board(project_dir)
+    board = load_board(project_dir, config_file)
     tasks = board["tasks"]
 
     counts = {"pending": 0, "in_progress": 0, "completed": 0, "failed": 0}

@@ -86,14 +86,14 @@ def parse_claude_log(log_file: Path) -> tuple[str, dict]:
     return result, tokens
 
 
-def run_task(project_dir: Path, board: dict, task: dict) -> bool:
+def run_task(project_dir: Path, board: dict, task: dict, config_file: str = "kanban.yaml") -> bool:
     """Run a single task and update board state."""
     kanban_dir = project_dir / ".kanban"
     log_file = kanban_dir / "claude.log"
 
     # Mark started
     start_task(board, task["id"])
-    save_board(project_dir, board)
+    save_board(project_dir, board, config_file)
 
     # Build and execute
     prompt = build_prompt(task, board.get("design_doc", "DESIGN.md"))
@@ -104,16 +104,16 @@ def run_task(project_dir: Path, board: dict, task: dict) -> bool:
 
     if result == "SUCCESS":
         complete_task(board, task["id"], tokens)
-        save_board(project_dir, board)
+        save_board(project_dir, board, config_file)
         return True
     else:
         reason = result.replace("FAILED:", "")
         fail_task(board, task["id"], reason)
-        save_board(project_dir, board)
+        save_board(project_dir, board, config_file)
         return False
 
 
-def run_loop(project_dir: Path, max_tasks: int = None, callback=None) -> int:
+def run_loop(project_dir: Path, config_file: str = "kanban.yaml", max_tasks: int = None, callback=None) -> int:
     """Run tasks in a loop until done, failure, or max_tasks reached."""
     completed = 0
 
@@ -121,7 +121,7 @@ def run_loop(project_dir: Path, max_tasks: int = None, callback=None) -> int:
         if max_tasks and completed >= max_tasks:
             break
 
-        board = load_board(project_dir)
+        board = load_board(project_dir, config_file)
         task = get_next_task(board)
 
         if not task:
@@ -130,7 +130,7 @@ def run_loop(project_dir: Path, max_tasks: int = None, callback=None) -> int:
         if callback:
             callback("start", task)
 
-        success = run_task(project_dir, board, task)
+        success = run_task(project_dir, board, task, config_file)
 
         if callback:
             callback("complete" if success else "fail", task)

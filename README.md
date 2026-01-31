@@ -74,6 +74,39 @@ Each task runs in a **fresh Claude session** with a prompt that tells Claude to:
 
 This avoids context window exhaustion — each task gets a clean context window rather than accumulating tokens from previous tasks.
 
+## Multi-Module Support
+
+Manage multiple kanban boards within a single project. Each module gets its own config and board state file.
+
+### Creating a module
+
+```bash
+kanban add-module auth
+kanban add-module auth --design docs/auth-design.md
+```
+
+This creates `kanban-auth.yaml` with a starter template. Board state is stored in `.kanban/auth-board.json`.
+
+### Running a module
+
+Use the `--board` (or `-b`) flag to target a specific module:
+
+```bash
+kanban --board kanban-auth.yaml status
+kanban --board kanban-auth.yaml run --loop
+kanban --board kanban-auth.yaml run --watch
+kanban --board kanban-auth.yaml sync
+kanban -b kanban-auth.yaml reset --all
+```
+
+### Listing modules
+
+```bash
+kanban list-modules
+```
+
+Shows all `kanban*.yaml` files in the project with their project name, design doc, and completion status.
+
 ## Commands
 
 | Command | Description |
@@ -90,6 +123,9 @@ This avoids context window exhaustion — each task gets a clean context window 
 | `kanban dashboard` | Show status display |
 | `kanban dashboard -w` | Live-refreshing status display |
 | `kanban stream-log` | Format `claude.log` stream for display (pipe stdin) |
+| `kanban add-module <name>` | Create a new module board (`kanban-<name>.yaml`) |
+| `kanban list-modules` | List all kanban modules in the project |
+| `--board <file>` | Global flag to target a specific board file |
 
 ## Task Sizing
 

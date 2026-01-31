@@ -25,6 +25,12 @@
 - [x] Unit 5.1: Create task-schema.md
 - [x] Unit 5.2: Create README.md
 
+- [x] Unit 6.1: Support --board flag in all commands
+- [x] Unit 6.2: Add-module command
+- [x] Unit 6.3: List-modules command
+- [x] Unit 6.4: Run command with --board
+- [x] Unit 6.5: Sync and reset with --board
+
 ## In Progress
 
 ## Pending

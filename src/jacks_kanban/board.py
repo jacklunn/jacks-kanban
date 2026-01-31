@@ -7,19 +7,19 @@ KANBAN_DIR = ".kanban"
 BOARD_FILE = "board.json"
 
 
-def load_config(project_dir: Path) -> dict:
-    """Load kanban.yaml from project directory."""
-    config_path = project_dir / "kanban.yaml"
+def load_config(project_dir: Path, config_file: str = "kanban.yaml") -> dict:
+    """Load kanban YAML from project directory."""
+    config_path = project_dir / config_file
     if not config_path.exists():
-        raise FileNotFoundError(f"No kanban.yaml found in {project_dir}")
+        raise FileNotFoundError(f"No {config_file} found in {project_dir}")
 
     with open(config_path) as f:
         return yaml.safe_load(f)
 
 
-def init_board(project_dir: Path) -> dict:
-    """Initialize board.json from kanban.yaml."""
-    config = load_config(project_dir)
+def init_board(project_dir: Path, config_file: str = "kanban.yaml") -> dict:
+    """Initialize board from kanban YAML config."""
+    config = load_config(project_dir, config_file)
 
     board = {
         "project": config["project"],
@@ -42,23 +42,36 @@ def init_board(project_dir: Path) -> dict:
     return board
 
 
-def get_board_path(project_dir: Path) -> Path:
-    return project_dir / KANBAN_DIR / BOARD_FILE
+def get_board_path(project_dir: Path, config_file: str = "kanban.yaml") -> Path:
+    """Get board.json path for a given config file.
+
+    Mapping:
+        kanban.yaml -> .kanban/board.json
+        kanban-auth.yaml -> .kanban/auth-board.json
+        kanban-billing.yaml -> .kanban/billing-board.json
+    """
+    base = Path(config_file).stem  # "kanban" or "kanban-auth"
+    if base == "kanban":
+        board_name = "board.json"
+    else:
+        module = base.replace("kanban-", "")
+        board_name = f"{module}-board.json"
+    return project_dir / KANBAN_DIR / board_name
 
 
-def save_board(project_dir: Path, board: dict) -> None:
-    """Save board state to .kanban/board.json."""
-    board_path = get_board_path(project_dir)
+def save_board(project_dir: Path, board: dict, config_file: str = "kanban.yaml") -> None:
+    """Save board state to .kanban/{module}-board.json."""
+    board_path = get_board_path(project_dir, config_file)
     board_path.parent.mkdir(exist_ok=True)
     with open(board_path, "w") as f:
         json.dump(board, f, indent=2)
 
 
-def load_board(project_dir: Path) -> dict:
-    """Load board state from .kanban/board.json."""
-    board_path = get_board_path(project_dir)
+def load_board(project_dir: Path, config_file: str = "kanban.yaml") -> dict:
+    """Load board state from .kanban/{module}-board.json."""
+    board_path = get_board_path(project_dir, config_file)
     if not board_path.exists():
-        return init_board(project_dir)
+        return init_board(project_dir, config_file)
     with open(board_path) as f:
         return json.load(f)
 

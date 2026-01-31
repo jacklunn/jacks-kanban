@@ -1481,6 +1481,439 @@ See `docs/task-schema.md` for the full schema.
 
 ---
 
+## Phase 6: Multi-Module Support
+
+This phase adds support for managing multiple modules within a single project. Each module gets its own kanban YAML and board file, allowing independent task execution.
+
+### Unit 6.1: [DONE] Support --board flag in all commands
+
+Allow specifying which board file to use via `--board` flag.
+
+**Test:**
+```python
+def test_status_with_board_flag(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml.replace("TestProject", "AuthModule"))
+        Path(".kanban").mkdir()
+        
+        result = runner.invoke(main, ["status", "--board", "kanban-auth.yaml"])
+        
+        assert result.exit_code == 0
+        assert "AuthModule" in result.output
+```
+
+**Implementation:**
+
+Add to cli.py at the group level:
+```python
+@click.group()
+@click.option("--board", "-b", "board_file", type=click.Path(), 
+              help="Path to kanban YAML file (default: kanban.yaml)")
+@click.pass_context
+def main(ctx, board_file):
+    """jacks-kanban: Orchestrate Claude Code through kanban tasks."""
+    ctx.ensure_object(dict)
+    ctx.obj["board_file"] = board_file or "kanban.yaml"
+```
+
+Update board.py to accept optional config path:
+```python
+def load_config(project_dir: Path, config_file: str = "kanban.yaml") -> dict:
+    """Load kanban YAML from project directory."""
+    config_path = project_dir / config_file
+    if not config_path.exists():
+        raise FileNotFoundError(f"No {config_file} found in {project_dir}")
+    
+    with open(config_path) as f:
+        return yaml.safe_load(f)
+
+def get_board_path(project_dir: Path, config_file: str = "kanban.yaml") -> Path:
+    """Get board.json path for a given config file."""
+    # kanban-auth.yaml -> .kanban/auth-board.json
+    base = Path(config_file).stem  # "kanban-auth"
+    if base == "kanban":
+        board_name = "board.json"
+    else:
+        # Extract module name: "kanban-auth" -> "auth"
+        module = base.replace("kanban-", "").replace("kanban", "")
+        board_name = f"{module}-board.json" if module else "board.json"
+    return project_dir / KANBAN_DIR / board_name
+```
+
+**Verify:** `pytest tests/test_cli.py::test_status_with_board_flag -v`
+
+---
+
+### Unit 6.2: [DONE] Add-module command
+
+Add `kanban add-module <name>` to create a new module board.
+
+**Test:**
+```python
+def test_add_module_creates_files(tmp_path):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        
+        result = runner.invoke(main, ["add-module", "auth"])
+        
+        assert result.exit_code == 0
+        assert Path("kanban-auth.yaml").exists()
+        
+def test_add_module_with_design_doc(tmp_path):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        Path("docs").mkdir()
+        Path("docs/auth-design.md").write_text("# Auth Design")
+        
+        result = runner.invoke(main, ["add-module", "auth", "--design", "docs/auth-design.md"])
+        
+        assert result.exit_code == 0
+        config = yaml.safe_load(Path("kanban-auth.yaml").read_text())
+        assert config["design_doc"] == "docs/auth-design.md"
+```
+
+**Implementation in cli.py:**
+```python
+@main.command("add-module")
+@click.argument("name")
+@click.option("--design", "-d", "design_doc", type=click.Path(),
+              help="Path to design document for this module")
+def add_module(name, design_doc):
+    """Create a new module board.
+    
+    Creates kanban-<name>.yaml with a starter template.
+    The board state will be stored in .kanban/<name>-board.json.
+    
+    Example:
+        kanban add-module auth
+        kanban add-module auth --design docs/auth-design.md
+    
+    Then run with:
+        kanban run --board kanban-auth.yaml --loop
+    """
+    project_dir = Path.cwd()
+    config_file = f"kanban-{name}.yaml"
+    config_path = project_dir / config_file
+    
+    if config_path.exists():
+        click.echo(f"{config_file} already exists", err=True)
+        raise SystemExit(1)
+    
+    # Create .kanban if needed
+    kanban_dir = project_dir / ".kanban"
+    kanban_dir.mkdir(exist_ok=True)
+    
+    # Generate template
+    template = f"""# {name.title()} Module
+project: {name.title()}Module
+design_doc: {design_doc or f'docs/{name}-design.md'}
+
+# Phase definitions
+phases:
+  0: "Setup"
+  1: "Core"
+  2: "Integration"
+
+# Task definitions
+# Generate these by asking Claude to break down your design doc.
+# See docs/task-schema.md for the schema.
+tasks:
+  - id: "0.1"
+    name: "Example: Add {name} dependencies"
+    phase: 0
+    deps: []
+    section: "## Setup"
+    verify: "echo 'Replace with real verify command'"
+    commit: "chore({name}): add dependencies"
+"""
+    
+    config_path.write_text(template)
+    click.echo(f"Created {config_file}")
+    click.echo(f"")
+    click.echo(f"Next steps:")
+    click.echo(f"  1. Create your design doc: {design_doc or f'docs/{name}-design.md'}")
+    click.echo(f"  2. Generate tasks using Claude (see docs/task-schema.md)")
+    click.echo(f"  3. Paste generated tasks into {config_file}")
+    click.echo(f"  4. Run: kanban run --board {config_file} --loop")
+```
+
+**Verify:** `pytest tests/test_cli.py::test_add_module_creates_files tests/test_cli.py::test_add_module_with_design_doc -v`
+
+---
+
+### Unit 6.3: [DONE] List-modules command
+
+Add `kanban list-modules` to show all module boards.
+
+**Test:**
+```python
+def test_list_modules(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml.replace("TestProject", "AuthModule"))
+        Path("kanban-billing.yaml").write_text(sample_kanban_yaml.replace("TestProject", "BillingModule"))
+        
+        result = runner.invoke(main, ["list-modules"])
+        
+        assert result.exit_code == 0
+        assert "kanban.yaml" in result.output
+        assert "kanban-auth.yaml" in result.output
+        assert "kanban-billing.yaml" in result.output
+```
+
+**Implementation:**
+```python
+@main.command("list-modules")
+def list_modules():
+    """List all kanban modules in the project."""
+    project_dir = Path.cwd()
+    
+    # Find all kanban*.yaml files
+    configs = sorted(project_dir.glob("kanban*.yaml"))
+    
+    if not configs:
+        click.echo("No kanban modules found.")
+        click.echo("Run 'kanban init' or 'kanban add-module <name>' to create one.")
+        return
+    
+    click.echo("Kanban modules:\n")
+    
+    for config_path in configs:
+        try:
+            config = load_config(project_dir, config_path.name)
+            board_path = get_board_path(project_dir, config_path.name)
+            
+            # Count tasks by status
+            if board_path.exists():
+                with open(board_path) as f:
+                    board = json.load(f)
+                tasks = board["tasks"]
+                completed = sum(1 for t in tasks if t["status"] == "completed")
+                total = len(tasks)
+                status = f"{completed}/{total} complete"
+            else:
+                total = len(config.get("tasks", []))
+                status = f"{total} tasks (not started)"
+            
+            click.echo(f"  {config_path.name}")
+            click.echo(f"    Project: {config.get('project', 'Unknown')}")
+            click.echo(f"    Design:  {config.get('design_doc', 'N/A')}")
+            click.echo(f"    Status:  {status}")
+            click.echo()
+        except Exception as e:
+            click.echo(f"  {config_path.name} (error: {e})")
+            click.echo()
+```
+
+**Verify:** `pytest tests/test_cli.py::test_list_modules -v`
+
+---
+
+### Unit 6.4: [DONE] Run command with --board
+
+Update run command to use the --board flag from context.
+
+**Test:**
+```python
+def test_run_with_board_flag(tmp_path, sample_kanban_yaml, mocker):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml.replace("TestProject", "AuthModule"))
+        Path(".kanban").mkdir()
+        
+        mocker.patch("jacks_kanban.runner.run_task", return_value=True)
+        
+        result = runner.invoke(main, ["--board", "kanban-auth.yaml", "run"])
+        
+        assert result.exit_code == 0
+        # Verify it used the right board
+        assert Path(".kanban/auth-board.json").exists()
+```
+
+**Implementation:**
+
+Update all commands to get board_file from context:
+```python
+@main.command()
+@click.pass_context
+def status(ctx):
+    """Show board status overview."""
+    project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
+    # ... rest of implementation
+
+@main.command()
+@click.option("--loop", "-l", is_flag=True, help="Keep running until failure or done")
+@click.option("--watch", "-w", is_flag=True, help="Run with tmux dashboard")
+@click.option("--max", "max_tasks", type=int, help="Max tasks to run")
+@click.pass_context
+def run(ctx, loop, watch, max_tasks):
+    """Run kanban tasks."""
+    project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    
+    if watch:
+        launch_watch_mode(project_dir, board_file, max_tasks)
+        return
+    
+    # ... rest uses board_file
+```
+
+Update `launch_watch_mode` to pass board file:
+```python
+def launch_watch_mode(project_dir: Path, board_file: str, max_tasks: int = None):
+    """Launch tmux with dashboard."""
+    session_name = "kanban"
+    kanban_dir = project_dir / ".kanban"
+    
+    os.system(f"tmux kill-session -t {session_name} 2>/dev/null")
+    os.system(f"tmux new-session -d -s {session_name} -c {project_dir}")
+    os.system(f"tmux split-window -v -p 30 -t {session_name}")
+    
+    # Bottom pane: stream log  
+    os.system(f"tmux send-keys -t {session_name}:0.1 'tail -f {kanban_dir}/claude.log | kanban stream-log' C-m")
+    
+    # Top pane: run loop with board flag
+    loop_cmd = f"kanban --board {board_file} run --loop"
+    if max_tasks:
+        loop_cmd += f" --max {max_tasks}"
+    os.system(f"tmux send-keys -t {session_name}:0.0 '{loop_cmd}' C-m")
+    
+    os.system(f"tmux attach-session -t {session_name}")
+```
+
+**Verify:** `pytest tests/test_cli.py::test_run_with_board_flag -v`
+
+---
+
+### Unit 6.5: [DONE] Sync and reset with --board
+
+Ensure sync and reset commands also respect the --board flag.
+
+**Test:**
+```python
+def test_sync_with_board_flag(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+        Path("setup.txt").touch()  # Makes first task pass
+        
+        result = runner.invoke(main, ["--board", "kanban-auth.yaml", "sync"])
+        
+        assert result.exit_code == 0
+        assert Path(".kanban/auth-board.json").exists()
+```
+
+**Implementation:**
+
+Update sync and reset commands:
+```python
+@main.command()
+@click.pass_context
+def sync(ctx):
+    """Sync board with codebase state."""
+    project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
+    
+    click.echo(f"Syncing {board_file} with codebase...")
+    changes = sync_board(project_dir, board)
+    
+    if changes:
+        save_board(project_dir, board, board_file)
+        click.echo(f"\nUpdated {len(changes)} task(s):")
+        for change in changes:
+            click.echo(f"  {change}")
+    else:
+        click.echo("No changes needed")
+
+@main.command()
+@click.argument("task_id", required=False)
+@click.option("--all", "reset_all", is_flag=True, help="Reset all tasks")
+@click.pass_context
+def reset(ctx, task_id, reset_all):
+    """Reset task(s) to pending state."""
+    project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
+    
+    # ... rest of implementation, then:
+    save_board(project_dir, board, board_file)
+```
+
+**Verify:** `pytest tests/test_cli.py::test_sync_with_board_flag -v`
+
+---
+
+## Phase 6 Usage Examples
+
+Once Phase 6 is complete, the multi-module workflow looks like:
+
+### Creating a New Module
+
+```bash
+cd ~/projects/MiniBrain
+
+# Create the module
+kanban add-module auth --design docs/auth-design.md
+
+# This creates:
+#   kanban-auth.yaml     (edit this with your tasks)
+#   .kanban/auth-board.json (created on first run)
+```
+
+### Generating Tasks
+
+```bash
+# Chat with Claude, paste your design doc + task-schema.md
+# Claude generates YAML task definitions
+# Paste into kanban-auth.yaml
+```
+
+### Running the Module
+
+```bash
+# Check status
+kanban --board kanban-auth.yaml status
+
+# Run tasks
+kanban --board kanban-auth.yaml run --loop
+
+# Or with dashboard
+kanban --board kanban-auth.yaml run --watch
+
+# Sync if you made manual changes
+kanban --board kanban-auth.yaml sync
+```
+
+### Listing All Modules
+
+```bash
+kanban list-modules
+
+# Output:
+# Kanban modules:
+#
+#   kanban.yaml
+#     Project: MiniBrain History System
+#     Design:  minibrain-history-build-plan.md
+#     Status:  85/85 complete
+#
+#   kanban-auth.yaml
+#     Project: AuthModule  
+#     Design:  docs/auth-design.md
+#     Status:  12/24 complete
+```
+
+---
+
 ## Summary
 
 | Phase | Tasks | Description |
@@ -1491,7 +1924,8 @@ See `docs/task-schema.md` for the full schema.
 | 3 | 6 | Runner (prompt, execute, parse, loop, run command) |
 | 4 | 3 | Sync, stream-log, dashboard |
 | 5 | 2 | Documentation |
+| 6 | 5 | Multi-module support (--board flag, add-module, list-modules) |
 
-**Total: 23 tasks**
+**Total: 28 tasks**
 
 Each task is sized to complete in a single Claude session.

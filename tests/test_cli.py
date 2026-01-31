@@ -449,3 +449,84 @@ def test_stream_log_other_tool():
 
     assert result.exit_code == 0
     assert "Grep" in result.output
+
+
+# --- Multi-module tests ---
+
+
+def test_add_module_creates_files(tmp_path):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["add-module", "auth"])
+
+        assert result.exit_code == 0
+        assert Path("kanban-auth.yaml").exists()
+        content = Path("kanban-auth.yaml").read_text()
+        assert "AuthModule" in content
+
+
+def test_add_module_with_design_doc(tmp_path):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        Path("docs").mkdir()
+        Path("docs/auth-design.md").write_text("# Auth Design")
+
+        result = runner.invoke(main, ["add-module", "auth", "--design", "docs/auth-design.md"])
+
+        assert result.exit_code == 0
+        content = Path("kanban-auth.yaml").read_text()
+        assert "docs/auth-design.md" in content
+
+
+def test_add_module_already_exists(tmp_path):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        Path("kanban-auth.yaml").write_text("existing")
+
+        result = runner.invoke(main, ["add-module", "auth"])
+
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+
+def test_list_modules(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".kanban").mkdir()
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml.replace("TestProject", "AuthModule"))
+
+        result = runner.invoke(main, ["list-modules"])
+
+        assert result.exit_code == 0
+        assert "kanban.yaml" in result.output
+        assert "kanban-auth.yaml" in result.output
+        assert "AuthModule" in result.output
+
+
+def test_status_with_board_flag(tmp_path, sample_kanban_yaml):
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban-auth.yaml").write_text(sample_kanban_yaml.replace("TestProject", "AuthModule"))
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["--board", "kanban-auth.yaml", "status"])
+
+        assert result.exit_code == 0
+        assert "AuthModule" in result.output
+
+
+def test_board_path_mapping():
+    """Test that config files map to correct board paths."""
+    from jacks_kanban.board import get_board_path
+    from pathlib import Path
+
+    project = Path("/tmp/test")
+
+    assert get_board_path(project, "kanban.yaml").name == "board.json"
+    assert get_board_path(project, "kanban-auth.yaml").name == "auth-board.json"
+    assert get_board_path(project, "kanban-billing.yaml").name == "billing-board.json"

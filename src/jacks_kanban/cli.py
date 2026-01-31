@@ -6,7 +6,7 @@ import click
 from importlib import resources
 from pathlib import Path
 
-from jacks_kanban.board import load_board, save_board, get_next_task, get_task, reset_task
+from jacks_kanban.board import load_board, load_config, save_board, get_board_path, get_next_task, get_task, reset_task
 from jacks_kanban.runner import run_loop, run_task
 from jacks_kanban.sync import sync_board
 from jacks_kanban.stream_log import process_stream
@@ -14,9 +14,13 @@ from jacks_kanban.dashboard import render_dashboard
 
 
 @click.group()
-def main():
+@click.option("--board", "-b", "board_file", type=click.Path(),
+              help="Path to kanban YAML file (default: kanban.yaml)")
+@click.pass_context
+def main(ctx, board_file):
     """jacks-kanban: Orchestrate Claude Code through kanban tasks."""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["board_file"] = board_file or "kanban.yaml"
 
 
 @main.command()
@@ -49,10 +53,12 @@ def init():
 
 
 @main.command()
-def status():
+@click.pass_context
+def status(ctx):
     """Show board status overview."""
     project_dir = Path.cwd()
-    board = load_board(project_dir)
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
 
     counts = {"pending": 0, "in_progress": 0, "completed": 0, "failed": 0}
     for task in board["tasks"]:
@@ -76,10 +82,12 @@ def status():
 
 @main.command()
 @click.argument("task_id")
-def show(task_id):
+@click.pass_context
+def show(ctx, task_id):
     """Show details of a specific task."""
     project_dir = Path.cwd()
-    board = load_board(project_dir)
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
 
     task = get_task(board, task_id)
     if not task:
@@ -100,19 +108,21 @@ def show(task_id):
 @main.command()
 @click.argument("task_id", required=False)
 @click.option("--all", "reset_all", is_flag=True, help="Reset all tasks")
-def reset(task_id, reset_all):
+@click.pass_context
+def reset(ctx, task_id, reset_all):
     """Reset task(s) to pending state."""
     project_dir = Path.cwd()
-    board = load_board(project_dir)
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
 
     if reset_all:
         for task in board["tasks"]:
             reset_task(board, task["id"])
-        save_board(project_dir, board)
+        save_board(project_dir, board, board_file)
         click.echo(f"Reset all {len(board['tasks'])} tasks to pending")
     elif task_id:
         reset_task(board, task_id)
-        save_board(project_dir, board)
+        save_board(project_dir, board, board_file)
         click.echo(f"Reset task {task_id} to pending")
     else:
         click.echo("Specify a task_id or use --all", err=True)
@@ -120,16 +130,18 @@ def reset(task_id, reset_all):
 
 
 @main.command()
-def sync():
+@click.pass_context
+def sync(ctx):
     """Sync board with codebase state."""
     project_dir = Path.cwd()
-    board = load_board(project_dir)
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
+    board = load_board(project_dir, board_file)
 
     click.echo("Syncing board with codebase...")
     changes = sync_board(project_dir, board)
 
     if changes:
-        save_board(project_dir, board)
+        save_board(project_dir, board, board_file)
         click.echo(f"\nUpdated {len(changes)} task(s):")
         for change in changes:
             click.echo(f"  {change}")
@@ -141,12 +153,14 @@ def sync():
 @click.option("--loop", "-l", is_flag=True, help="Keep running until failure or done")
 @click.option("--watch", "-w", is_flag=True, help="Run with tmux dashboard")
 @click.option("--max", "max_tasks", type=int, help="Max tasks to run")
-def run(loop, watch, max_tasks):
+@click.pass_context
+def run(ctx, loop, watch, max_tasks):
     """Run kanban tasks."""
     project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
 
     if watch:
-        launch_watch_mode(project_dir, max_tasks)
+        launch_watch_mode(project_dir, board_file, max_tasks)
         return
 
     def log_callback(event, task):
@@ -158,17 +172,17 @@ def run(loop, watch, max_tasks):
             click.echo(f"✗ Failed [{task['id']}]")
 
     if loop or max_tasks:
-        completed = run_loop(project_dir, max_tasks=max_tasks, callback=log_callback)
+        completed = run_loop(project_dir, config_file=board_file, max_tasks=max_tasks, callback=log_callback)
         click.echo(f"\nCompleted {completed} task(s)")
     else:
         # Run single task
-        board = load_board(project_dir)
+        board = load_board(project_dir, board_file)
         task = get_next_task(board)
         if not task:
             click.echo("No tasks available")
             return
         log_callback("start", task)
-        success = run_task(project_dir, board, task)
+        success = run_task(project_dir, board, task, config_file=board_file)
         log_callback("complete" if success else "fail", task)
 
 
@@ -180,22 +194,130 @@ def stream_log():
 
 @main.command()
 @click.option("--watch", "-w", is_flag=True, help="Refresh every 2 seconds")
-def dashboard(watch):
+@click.pass_context
+def dashboard(ctx, watch):
     """Show live dashboard."""
     project_dir = Path.cwd()
+    board_file = ctx.obj.get("board_file", "kanban.yaml")
 
     if watch:
         try:
             while True:
-                render_dashboard(project_dir)
+                render_dashboard(project_dir, board_file)
                 time.sleep(2)
         except KeyboardInterrupt:
             pass
     else:
-        render_dashboard(project_dir)
+        render_dashboard(project_dir, board_file)
 
 
-def launch_watch_mode(project_dir: Path, max_tasks: int = None):
+@main.command("add-module")
+@click.argument("name")
+@click.option("--design", "-d", "design_doc", type=click.Path(),
+              help="Path to design document for this module")
+def add_module(name, design_doc):
+    """Create a new module board.
+
+    Creates kanban-<name>.yaml with a starter template.
+    The board state will be stored in .kanban/<name>-board.json.
+
+    Example:
+        kanban add-module auth
+        kanban add-module auth --design docs/auth-design.md
+
+    Then run with:
+        kanban --board kanban-auth.yaml run --loop
+    """
+    project_dir = Path.cwd()
+    config_file = f"kanban-{name}.yaml"
+    config_path = project_dir / config_file
+
+    if config_path.exists():
+        click.echo(f"{config_file} already exists", err=True)
+        raise SystemExit(1)
+
+    # Create .kanban if needed
+    kanban_dir = project_dir / ".kanban"
+    kanban_dir.mkdir(exist_ok=True)
+
+    # Generate template
+    template = f'''# {name.title()} Module
+project: {name.title()}Module
+design_doc: {design_doc or f"docs/{name}-design.md"}
+
+# Phase definitions
+phases:
+  0: "Setup"
+  1: "Core"
+  2: "Integration"
+
+# Task definitions
+# Generate these by asking Claude to break down your design doc.
+# See docs/task-schema.md for the schema.
+tasks:
+  - id: "0.1"
+    name: "Example: Add {name} dependencies"
+    phase: 0
+    deps: []
+    section: "## Setup"
+    verify: "echo 'Replace with real verify command'"
+    commit: "chore({name}): add dependencies"
+'''
+
+    config_path.write_text(template)
+    click.echo(f"Created {config_file}")
+    click.echo()
+    click.echo("Next steps:")
+    click.echo(f"  1. Create your design doc: {design_doc or f'docs/{name}-design.md'}")
+    click.echo(f"  2. Generate tasks using Claude (see docs/task-schema.md)")
+    click.echo(f"  3. Paste generated tasks into {config_file}")
+    click.echo(f"  4. Run: kanban --board {config_file} run --loop")
+
+
+@main.command("list-modules")
+def list_modules():
+    """List all kanban modules in the project."""
+    import json
+    project_dir = Path.cwd()
+
+    # Find all kanban*.yaml files
+    configs = sorted(project_dir.glob("kanban*.yaml"))
+
+    if not configs:
+        click.echo("No kanban modules found.")
+        click.echo("Run 'kanban init' or 'kanban add-module <name>' to create one.")
+        return
+
+    click.echo("Kanban modules:\n")
+
+    for config_path in configs:
+        try:
+            config = load_config(project_dir, config_path.name)
+            board_path = get_board_path(project_dir, config_path.name)
+
+            # Count tasks by status
+            if board_path.exists():
+                with open(board_path) as f:
+                    board = json.load(f)
+                tasks = board["tasks"]
+                completed = sum(1 for t in tasks if t["status"] == "completed")
+                total = len(tasks)
+                status = f"{completed}/{total} complete"
+            else:
+                total = len(config.get("tasks", []))
+                status = f"{total} tasks (not started)"
+
+            click.echo(f"  {config_path.name}")
+            click.echo(f"    Project: {config.get('project', 'Unknown')}")
+            click.echo(f"    Design:  {config.get('design_doc', 'N/A')}")
+            click.echo(f"    Status:  {status}")
+            click.echo()
+        except Exception as e:
+            click.echo(f"  {config_path.name} (error: {e})")
+            click.echo()
+
+
+def launch_watch_mode(project_dir: Path, board_file: str = "kanban.yaml", max_tasks: int = None):
     """Launch tmux with dashboard."""
     session_name = "kanban"
     kanban_dir = project_dir / ".kanban"
@@ -211,7 +333,7 @@ def launch_watch_mode(project_dir: Path, max_tasks: int = None):
     os.system(f"tmux send-keys -t {session_name}:0.1 'tail -f {kanban_dir}/claude.log | kanban stream-log' C-m")
 
     # Top pane: run loop
-    loop_cmd = "kanban run --loop"
+    loop_cmd = f"kanban --board {board_file} run --loop"
     if max_tasks:
         loop_cmd += f" --max {max_tasks}"
     os.system(f"tmux send-keys -t {session_name}:0.0 '{loop_cmd}' C-m")

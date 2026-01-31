@@ -13,11 +13,11 @@
 - [x] Unit 2.2: Status command
 - [x] Unit 2.3: Show command
 - [x] Unit 2.4: Reset command
+- [x] Unit 3.1: Build prompt from task
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 3.1: Build prompt from task
 - [ ] Unit 3.2: Execute Claude and capture output
 - [ ] Unit 3.3: Parse Claude log for result
 - [ ] Unit 3.4: Run single task

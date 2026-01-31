@@ -261,7 +261,7 @@ def load_config(project_dir: Path) -> dict:
 
 ---
 
-### Unit 1.2: Initialize board.json
+### Unit 1.2: [DONE] Initialize board.json
 
 Create function to generate board.json from kanban.yaml config.
 

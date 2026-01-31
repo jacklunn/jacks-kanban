@@ -712,7 +712,7 @@ def show(task_id):
 
 ---
 
-### Unit 2.4: Reset command
+### Unit 2.4: [DONE] Reset command
 
 Add `kanban reset [task_id]` to reset tasks.
 

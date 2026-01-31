@@ -1,0 +1,22 @@
+# Project configuration
+project: MyProject
+design_doc: DESIGN.md  # The design doc Claude reads for context
+
+# Optional additional context files
+context_files: []
+
+# Phase definitions
+phases:
+  0: "Setup"
+  1: "Core"
+  2: "Features"
+
+# Task definitions
+tasks:
+  - id: "0.1"
+    name: "Example task"
+    phase: 0
+    deps: []
+    section: "## Section Name"  # Section header in design_doc
+    verify: "echo 'replace with real verify command'"
+    commit: "feat: example commit message"

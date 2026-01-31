@@ -163,7 +163,7 @@ work.log
 
 ---
 
-### Unit 0.3: Create test infrastructure
+### Unit 0.3: [DONE] Create test infrastructure
 
 Set up pytest and basic test structure.
 

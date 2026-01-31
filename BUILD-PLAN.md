@@ -956,7 +956,7 @@ def parse_claude_log(log_file: Path) -> tuple[str, dict]:
 
 ---
 
-### Unit 3.4: Run single task
+### Unit 3.4: [DONE] Run single task
 
 Combine prompt building, execution, and result parsing.
 

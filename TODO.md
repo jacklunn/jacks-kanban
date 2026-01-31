@@ -16,9 +16,9 @@
 - [x] Unit 3.1: Build prompt from task
 - [x] Unit 3.2: Execute Claude and capture output
 - [x] Unit 3.3: Parse Claude log for result
+- [x] Unit 3.4: Run single task
 
 ## In Progress
-- [ ] Unit 3.4: Run single task
 
 ## Pending
 - [ ] Unit 3.5: Task loop

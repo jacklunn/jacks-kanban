@@ -360,7 +360,7 @@ def load_board(project_dir: Path) -> dict:
 
 ---
 
-### Unit 1.4: Get next available task
+### Unit 1.4: [DONE] Get next available task
 
 Find the next task that is pending and has all dependencies met.
 

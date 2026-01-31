@@ -222,7 +222,7 @@ tasks:
 
 ## Phase 1: Board Management
 
-### Unit 1.1: Load kanban.yaml
+### Unit 1.1: [DONE] Load kanban.yaml
 
 Create board.py with function to load and validate kanban.yaml.
 

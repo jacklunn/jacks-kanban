@@ -1072,7 +1072,7 @@ def run_loop(project_dir: Path, max_tasks: int = None, callback=None) -> int:
 
 ---
 
-### Unit 3.6: Run command in CLI
+### Unit 3.6: [DONE] Run command in CLI
 
 Add `kanban run` command with --loop and --watch options.
 

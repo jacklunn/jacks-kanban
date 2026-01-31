@@ -769,7 +769,7 @@ def reset(task_id, reset_all):
 
 ## Phase 3: Runner
 
-### Unit 3.1: Build prompt from task
+### Unit 3.1: [DONE] Build prompt from task
 
 Create runner.py with function to build the Claude prompt.
 

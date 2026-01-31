@@ -2,6 +2,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from jacks_kanban.board import start_task, complete_task, fail_task, save_board
+
 
 def build_prompt(task: dict, design_doc: str) -> str:
     """Build the prompt for Claude to execute a task."""
@@ -82,3 +84,30 @@ def parse_claude_log(log_file: Path) -> tuple[str, dict]:
                 pass
 
     return result, tokens
+
+
+def run_task(project_dir: Path, board: dict, task: dict) -> bool:
+    """Run a single task and update board state."""
+    kanban_dir = project_dir / ".kanban"
+    log_file = kanban_dir / "claude.log"
+
+    # Mark started
+    start_task(board, task["id"])
+    save_board(project_dir, board)
+
+    # Build and execute
+    prompt = build_prompt(task, board.get("design_doc", "DESIGN.md"))
+    execute_claude(prompt, log_file, project_dir)
+
+    # Parse result
+    result, tokens = parse_claude_log(log_file)
+
+    if result == "SUCCESS":
+        complete_task(board, task["id"], tokens)
+        save_board(project_dir, board)
+        return True
+    else:
+        reason = result.replace("FAILED:", "")
+        fail_task(board, task["id"], reason)
+        save_board(project_dir, board)
+        return False

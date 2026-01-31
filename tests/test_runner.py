@@ -1,4 +1,7 @@
-from jacks_kanban.runner import build_prompt, execute_claude, parse_claude_log
+from pathlib import Path
+
+from jacks_kanban.board import init_board, get_next_task
+from jacks_kanban.runner import build_prompt, execute_claude, parse_claude_log, run_task
 
 
 def test_build_prompt():
@@ -118,3 +121,43 @@ def test_parse_log_handles_blank_lines_and_invalid_json(tmp_path):
 
     assert result == "SUCCESS"
     assert tokens["cost_usd"] == 0.05
+
+
+def test_run_task_updates_board_on_success(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=0)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        return_value=("SUCCESS", {"cost_usd": 0.01}),
+    )
+
+    board = init_board(tmp_path)
+    task = get_next_task(board)
+
+    success = run_task(tmp_path, board, task)
+
+    assert success is True
+    assert board["tasks"][0]["status"] == "completed"
+    assert board["tasks"][0]["tokens"]["cost_usd"] == 0.01
+
+
+def test_run_task_updates_board_on_failure(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=1)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        return_value=("FAILED:Test failed", {}),
+    )
+
+    board = init_board(tmp_path)
+    task = get_next_task(board)
+
+    success = run_task(tmp_path, board, task)
+
+    assert success is False
+    assert board["tasks"][0]["status"] == "failed"
+    assert board["tasks"][0]["failure_reason"] == "Test failed"

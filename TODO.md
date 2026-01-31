@@ -18,9 +18,9 @@
 - [x] Unit 3.3: Parse Claude log for result
 
 ## In Progress
+- [ ] Unit 3.4: Run single task
 
 ## Pending
-- [ ] Unit 3.4: Run single task
 - [ ] Unit 3.5: Task loop
 - [ ] Unit 3.6: Run command in CLI
 - [ ] Unit 4.1: Sync command

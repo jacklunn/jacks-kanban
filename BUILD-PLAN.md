@@ -309,7 +309,7 @@ def init_board(project_dir: Path) -> dict:
 
 ---
 
-### Unit 1.3: Save and load board.json
+### Unit 1.3: [DONE] Save and load board.json
 
 Add functions to persist and load board state.
 

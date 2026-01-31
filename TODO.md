@@ -6,11 +6,11 @@
 - [x] Unit 0.3: Create test infrastructure
 - [x] Unit 1.1: Load kanban.yaml
 - [x] Unit 1.2: Initialize board.json
+- [x] Unit 1.3: Save and load board.json
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 1.3: Save and load board.json
 - [ ] Unit 1.4: Get next available task
 - [ ] Unit 1.5: Task state transitions
 - [ ] Unit 2.1: CLI entry point with init command

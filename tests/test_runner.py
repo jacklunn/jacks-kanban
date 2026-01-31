@@ -1,4 +1,4 @@
-from jacks_kanban.runner import build_prompt, execute_claude
+from jacks_kanban.runner import build_prompt, execute_claude, parse_claude_log
 
 
 def test_build_prompt():
@@ -64,3 +64,57 @@ def test_execute_claude_returns_nonzero_on_failure(tmp_path, mocker):
     returncode = execute_claude("test prompt", log_file, project_dir=tmp_path)
 
     assert returncode == 1
+
+
+def test_parse_log_success(tmp_path):
+    log_content = '{"type":"system","subtype":"init","model":"claude-sonnet-4-20250514"}\n{"type":"assistant","message":{"content":[{"type":"text","text":"Working on it..."}]}}\n{"type":"result","is_error":false,"result":"Done","duration_ms":5000,"total_cost_usd":0.01,"num_turns":3,"usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":200,"cache_creation_input_tokens":100}}'
+
+    log_file = tmp_path / "claude.log"
+    log_file.write_text(log_content)
+
+    result, tokens = parse_claude_log(log_file)
+
+    assert result == "SUCCESS"
+    assert tokens["cost_usd"] == 0.01
+    assert tokens["input_tokens"] == 1000
+    assert tokens["output_tokens"] == 500
+    assert tokens["cache_read_input_tokens"] == 200
+    assert tokens["cache_creation_input_tokens"] == 100
+    assert tokens["duration_ms"] == 5000
+    assert tokens["num_turns"] == 3
+
+
+def test_parse_log_failure(tmp_path):
+    log_content = '{"type":"result","is_error":true,"result":"Test failed"}'
+
+    log_file = tmp_path / "claude.log"
+    log_file.write_text(log_content)
+
+    result, tokens = parse_claude_log(log_file)
+
+    assert result.startswith("FAILED")
+    assert "Test failed" in result
+
+
+def test_parse_log_no_result(tmp_path):
+    log_content = '{"type":"system","subtype":"init","model":"claude-sonnet-4-20250514"}\n{"type":"assistant","message":{"content":[{"type":"text","text":"Working..."}]}}'
+
+    log_file = tmp_path / "claude.log"
+    log_file.write_text(log_content)
+
+    result, tokens = parse_claude_log(log_file)
+
+    assert result.startswith("FAILED")
+    assert tokens == {}
+
+
+def test_parse_log_handles_blank_lines_and_invalid_json(tmp_path):
+    log_content = '\n\nnot valid json\n{"type":"result","is_error":false,"result":"OK","duration_ms":1000,"total_cost_usd":0.05,"num_turns":1,"usage":{"input_tokens":500,"output_tokens":250,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}\n'
+
+    log_file = tmp_path / "claude.log"
+    log_file.write_text(log_content)
+
+    result, tokens = parse_claude_log(log_file)
+
+    assert result == "SUCCESS"
+    assert tokens["cost_usd"] == 0.05

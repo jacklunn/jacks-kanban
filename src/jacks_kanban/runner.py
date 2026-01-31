@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -47,3 +48,37 @@ def execute_claude(prompt: str, log_file: Path, project_dir: Path) -> int:
         )
 
     return result.returncode
+
+
+def parse_claude_log(log_file: Path) -> tuple[str, dict]:
+    """Parse claude.log and extract result + token usage."""
+    result = "FAILED:No result found"
+    tokens = {}
+
+    with open(log_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+                if d.get("type") == "result":
+                    usage = d.get("usage", {})
+                    tokens = {
+                        "input_tokens": usage.get("input_tokens", 0),
+                        "output_tokens": usage.get("output_tokens", 0),
+                        "cache_read_input_tokens": usage.get("cache_read_input_tokens", 0),
+                        "cache_creation_input_tokens": usage.get("cache_creation_input_tokens", 0),
+                        "cost_usd": d.get("total_cost_usd", 0),
+                        "duration_ms": d.get("duration_ms", 0),
+                        "num_turns": d.get("num_turns", 0),
+                    }
+
+                    if d.get("is_error"):
+                        result = f"FAILED:{d.get('result', 'Unknown error')[:100]}"
+                    else:
+                        result = "SUCCESS"
+            except json.JSONDecodeError:
+                pass
+
+    return result, tokens

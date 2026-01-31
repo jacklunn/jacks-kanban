@@ -441,7 +441,7 @@ def get_next_task(board: dict) -> dict | None:
 
 ---
 
-### Unit 1.5: Task state transitions
+### Unit 1.5: [DONE] Task state transitions
 
 Add functions to start, complete, and fail tasks.
 

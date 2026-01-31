@@ -60,3 +60,48 @@ def load_board(project_dir: Path) -> dict:
         return init_board(project_dir)
     with open(board_path) as f:
         return json.load(f)
+
+
+def get_task_status(board: dict, task_id: str) -> str:
+    """Get status of a task by ID."""
+    for task in board["tasks"]:
+        if task["id"] == task_id:
+            return task["status"]
+    return "unknown"
+
+
+def are_deps_met(board: dict, task: dict) -> bool:
+    """Check if all dependencies are completed."""
+    for dep_id in task.get("deps", []):
+        if get_task_status(board, dep_id) != "completed":
+            return False
+    return True
+
+
+def is_blocked_by_failure(board: dict, task: dict) -> bool:
+    """Check if task is blocked by a failed dependency (transitive)."""
+    visited = set()
+
+    def check(t):
+        if t["id"] in visited:
+            return False
+        visited.add(t["id"])
+        for dep_id in t.get("deps", []):
+            dep = next((x for x in board["tasks"] if x["id"] == dep_id), None)
+            if dep:
+                if dep["status"] == "failed":
+                    return True
+                if check(dep):
+                    return True
+        return False
+
+    return check(task)
+
+
+def get_next_task(board: dict) -> dict | None:
+    """Get next available task (pending, deps met, not blocked)."""
+    for task in board["tasks"]:
+        if task["status"] == "pending":
+            if are_deps_met(board, task) and not is_blocked_by_failure(board, task):
+                return task
+    return None

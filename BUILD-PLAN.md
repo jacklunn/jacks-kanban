@@ -1410,7 +1410,7 @@ def dashboard(watch):
 
 ## Phase 5: Documentation
 
-### Unit 5.1: Create task-schema.md
+### Unit 5.1: [DONE] Create task-schema.md
 
 The schema doc for Claude to generate tasks.
 

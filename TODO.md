@@ -19,11 +19,11 @@
 - [x] Unit 3.4: Run single task
 - [x] Unit 3.5: Task loop
 - [x] Unit 3.6: Run command in CLI
+- [x] Unit 4.1: Sync command
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 4.1: Sync command
 - [ ] Unit 4.2: Stream-log command
 - [ ] Unit 4.3: Dashboard command
 - [ ] Unit 5.1: Create task-schema.md

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from jacks_kanban.board import load_board, save_board, get_next_task, get_task, reset_task
 from jacks_kanban.runner import run_loop, run_task
+from jacks_kanban.sync import sync_board
 
 
 @click.group()
@@ -113,6 +114,24 @@ def reset(task_id, reset_all):
     else:
         click.echo("Specify a task_id or use --all", err=True)
         raise SystemExit(1)
+
+
+@main.command()
+def sync():
+    """Sync board with codebase state."""
+    project_dir = Path.cwd()
+    board = load_board(project_dir)
+
+    click.echo("Syncing board with codebase...")
+    changes = sync_board(project_dir, board)
+
+    if changes:
+        save_board(project_dir, board)
+        click.echo(f"\nUpdated {len(changes)} task(s):")
+        for change in changes:
+            click.echo(f"  {change}")
+    else:
+        click.echo("No changes needed")
 
 
 @main.command()

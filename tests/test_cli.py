@@ -275,3 +275,79 @@ def test_run_command_watch(tmp_path, sample_kanban_yaml):
 
         assert result.exit_code == 0
         mock_watch.assert_called_once()
+
+
+def test_sync_marks_completed(tmp_path, sample_kanban_yaml):
+    """Test kanban sync marks tasks as completed when verify passes."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # Create file that makes first task's verify pass (test -f setup.txt)
+        Path("setup.txt").touch()
+
+        result = runner.invoke(main, ["sync"])
+
+        assert result.exit_code == 0
+        board = load_board(Path.cwd())
+        assert board["tasks"][0]["status"] == "completed"
+        assert board["tasks"][1]["status"] == "pending"
+        assert board["tasks"][2]["status"] == "pending"
+
+
+def test_sync_marks_multiple_completed(tmp_path, sample_kanban_yaml):
+    """Test kanban sync marks multiple tasks when their verify commands pass."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # Create files that make first two tasks pass
+        Path("setup.txt").touch()
+        Path("setup2.txt").touch()
+
+        result = runner.invoke(main, ["sync"])
+
+        assert result.exit_code == 0
+        board = load_board(Path.cwd())
+        assert board["tasks"][0]["status"] == "completed"
+        assert board["tasks"][1]["status"] == "completed"
+        assert board["tasks"][2]["status"] == "pending"
+
+
+def test_sync_no_changes(tmp_path, sample_kanban_yaml):
+    """Test kanban sync reports no changes when nothing passes."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["sync"])
+
+        assert result.exit_code == 0
+        assert "No changes" in result.output
+
+
+def test_sync_fixes_failed_task(tmp_path, sample_kanban_yaml):
+    """Test kanban sync can recover a failed task when verify now passes."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # Fail the first task
+        board = init_board(Path.cwd())
+        start_task(board, "0.1")
+        fail_task(board, "0.1", reason="Previous failure")
+        save_board(Path.cwd(), board)
+
+        # Now create the file so verify passes
+        Path("setup.txt").touch()
+
+        result = runner.invoke(main, ["sync"])
+
+        assert result.exit_code == 0
+        board = load_board(Path.cwd())
+        assert board["tasks"][0]["status"] == "completed"
+        assert board["tasks"][0].get("failure_reason") is None

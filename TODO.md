@@ -21,9 +21,9 @@
 - [x] Unit 3.6: Run command in CLI
 - [x] Unit 4.1: Sync command
 - [x] Unit 4.2: Stream-log command
+- [x] Unit 4.3: Dashboard command
 
 ## In Progress
-- [ ] Unit 4.3: Dashboard command
 
 ## Pending
 - [ ] Unit 5.1: Create task-schema.md

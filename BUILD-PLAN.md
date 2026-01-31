@@ -1320,7 +1320,7 @@ def stream_log():
 
 ---
 
-### Unit 4.3: Dashboard command
+### Unit 4.3: [DONE] Dashboard command
 
 Add `kanban dashboard` for live status display.
 

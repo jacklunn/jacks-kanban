@@ -11,9 +11,9 @@
 - [x] Unit 1.5: Task state transitions
 
 ## In Progress
+- [ ] Unit 2.1: CLI entry point with init command
 
 ## Pending
-- [ ] Unit 2.1: CLI entry point with init command
 - [ ] Unit 2.2: Status command
 - [ ] Unit 2.3: Show command
 - [ ] Unit 2.4: Reset command

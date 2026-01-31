@@ -611,7 +611,7 @@ if __name__ == "__main__":
 
 ---
 
-### Unit 2.2: Status command
+### Unit 2.2: [DONE] Status command
 
 Add `kanban status` to show board overview.
 

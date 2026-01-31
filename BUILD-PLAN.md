@@ -882,7 +882,7 @@ def execute_claude(prompt: str, log_file: Path, project_dir: Path) -> int:
 
 ---
 
-### Unit 3.3: Parse Claude log for result
+### Unit 3.3: [DONE] Parse Claude log for result
 
 Extract SUCCESS/FAILED and token usage from claude.log.
 

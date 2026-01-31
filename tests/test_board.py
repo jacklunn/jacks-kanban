@@ -1,4 +1,7 @@
-from jacks_kanban.board import load_config, init_board, save_board, load_board, get_next_task
+from jacks_kanban.board import (
+    load_config, init_board, save_board, load_board, get_next_task,
+    get_task, start_task, complete_task, fail_task, reset_task,
+)
 
 
 def test_load_config(tmp_project, sample_kanban_yaml):
@@ -82,3 +85,80 @@ def test_load_config_missing_file(tmp_project):
 
     with pytest.raises(FileNotFoundError):
         load_config(tmp_project)
+
+
+def test_get_task(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+
+    task = get_task(board, "0.1")
+    assert task is not None
+    assert task["name"] == "First task"
+
+    assert get_task(board, "nonexistent") is None
+
+
+def test_start_task(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+    start_task(board, "0.1")
+
+    assert board["tasks"][0]["status"] == "in_progress"
+    assert "started_at" in board["tasks"][0]
+
+
+def test_complete_task(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+    start_task(board, "0.1")
+    complete_task(board, "0.1", tokens={"cost_usd": 0.01})
+
+    assert board["tasks"][0]["status"] == "completed"
+    assert "completed_at" in board["tasks"][0]
+    assert board["tasks"][0]["tokens"]["cost_usd"] == 0.01
+
+
+def test_fail_task(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+    start_task(board, "0.1")
+    fail_task(board, "0.1", reason="Test failed")
+
+    assert board["tasks"][0]["status"] == "failed"
+    assert board["tasks"][0]["failure_reason"] == "Test failed"
+
+
+def test_reset_task(tmp_project, sample_kanban_yaml):
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+    start_task(board, "0.1")
+    complete_task(board, "0.1", tokens={"cost_usd": 0.01})
+
+    reset_task(board, "0.1")
+
+    assert board["tasks"][0]["status"] == "pending"
+    assert "started_at" not in board["tasks"][0]
+    assert "completed_at" not in board["tasks"][0]
+    assert "tokens" not in board["tasks"][0]
+
+
+def test_start_task_not_found(tmp_project, sample_kanban_yaml):
+    import pytest
+
+    config_file = tmp_project / "kanban.yaml"
+    config_file.write_text(sample_kanban_yaml)
+
+    board = init_board(tmp_project)
+
+    with pytest.raises(ValueError):
+        start_task(board, "nonexistent")

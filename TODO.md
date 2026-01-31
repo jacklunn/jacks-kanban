@@ -10,9 +10,9 @@
 - [x] Unit 1.4: Get next available task
 
 ## In Progress
+- [ ] Unit 1.5: Task state transitions
 
 ## Pending
-- [ ] Unit 1.5: Task state transitions
 - [ ] Unit 2.1: CLI entry point with init command
 - [ ] Unit 2.2: Status command
 - [ ] Unit 2.3: Show command

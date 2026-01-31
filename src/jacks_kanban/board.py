@@ -1,5 +1,6 @@
 import json
 import yaml
+from datetime import datetime
 from pathlib import Path
 
 KANBAN_DIR = ".kanban"
@@ -105,3 +106,51 @@ def get_next_task(board: dict) -> dict | None:
             if are_deps_met(board, task) and not is_blocked_by_failure(board, task):
                 return task
     return None
+
+
+def get_task(board: dict, task_id: str) -> dict | None:
+    """Get a task by ID."""
+    for task in board["tasks"]:
+        if task["id"] == task_id:
+            return task
+    return None
+
+
+def start_task(board: dict, task_id: str) -> None:
+    """Mark task as in_progress."""
+    task = get_task(board, task_id)
+    if not task:
+        raise ValueError(f"Task {task_id} not found")
+    task["status"] = "in_progress"
+    task["started_at"] = datetime.now().isoformat()
+
+
+def complete_task(board: dict, task_id: str, tokens: dict = None) -> None:
+    """Mark task as completed."""
+    task = get_task(board, task_id)
+    if not task:
+        raise ValueError(f"Task {task_id} not found")
+    task["status"] = "completed"
+    task["completed_at"] = datetime.now().isoformat()
+    if tokens:
+        task["tokens"] = tokens
+
+
+def fail_task(board: dict, task_id: str, reason: str = "unknown") -> None:
+    """Mark task as failed."""
+    task = get_task(board, task_id)
+    if not task:
+        raise ValueError(f"Task {task_id} not found")
+    task["status"] = "failed"
+    task["failed_at"] = datetime.now().isoformat()
+    task["failure_reason"] = reason
+
+
+def reset_task(board: dict, task_id: str) -> None:
+    """Reset task to pending."""
+    task = get_task(board, task_id)
+    if not task:
+        raise ValueError(f"Task {task_id} not found")
+    task["status"] = "pending"
+    for key in ["started_at", "completed_at", "failed_at", "failure_reason", "tokens"]:
+        task.pop(key, None)

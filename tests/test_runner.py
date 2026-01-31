@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from jacks_kanban.board import init_board, get_next_task
-from jacks_kanban.runner import build_prompt, execute_claude, parse_claude_log, run_task
+from jacks_kanban.runner import build_prompt, execute_claude, parse_claude_log, run_task, run_loop
 
 
 def test_build_prompt():
@@ -161,3 +161,78 @@ def test_run_task_updates_board_on_failure(tmp_path, sample_kanban_yaml, mocker)
     assert success is False
     assert board["tasks"][0]["status"] == "failed"
     assert board["tasks"][0]["failure_reason"] == "Test failed"
+
+
+def test_run_loop_stops_on_failure(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    # First task succeeds, second fails
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=0)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        side_effect=[("SUCCESS", {"cost_usd": 0.01}), ("FAILED:error", {})],
+    )
+
+    completed = run_loop(tmp_path, max_tasks=10)
+
+    assert completed == 1  # Only first task completed
+
+
+def test_run_loop_stops_when_no_tasks(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    # All three tasks succeed
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=0)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        side_effect=[
+            ("SUCCESS", {"cost_usd": 0.01}),
+            ("SUCCESS", {"cost_usd": 0.02}),
+            ("SUCCESS", {"cost_usd": 0.03}),
+        ],
+    )
+
+    completed = run_loop(tmp_path, max_tasks=10)
+
+    assert completed == 3
+
+
+def test_run_loop_respects_max_tasks(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=0)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        side_effect=[
+            ("SUCCESS", {"cost_usd": 0.01}),
+            ("SUCCESS", {"cost_usd": 0.02}),
+        ],
+    )
+
+    completed = run_loop(tmp_path, max_tasks=2)
+
+    assert completed == 2
+
+
+def test_run_loop_calls_callback(tmp_path, sample_kanban_yaml, mocker):
+    Path(tmp_path / "kanban.yaml").write_text(sample_kanban_yaml)
+    Path(tmp_path / ".kanban").mkdir()
+
+    mocker.patch("jacks_kanban.runner.execute_claude", return_value=0)
+    mocker.patch(
+        "jacks_kanban.runner.parse_claude_log",
+        side_effect=[("SUCCESS", {"cost_usd": 0.01}), ("FAILED:error", {})],
+    )
+
+    events = []
+    callback = lambda event, task: events.append((event, task["id"]))
+
+    run_loop(tmp_path, max_tasks=10, callback=callback)
+
+    assert events[0] == ("start", "0.1")
+    assert events[1] == ("complete", "0.1")
+    assert events[2] == ("start", "0.2")
+    assert events[3] == ("fail", "0.2")

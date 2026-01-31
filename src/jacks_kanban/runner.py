@@ -2,7 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from jacks_kanban.board import start_task, complete_task, fail_task, save_board
+from jacks_kanban.board import start_task, complete_task, fail_task, save_board, load_board, get_next_task
 
 
 def build_prompt(task: dict, design_doc: str) -> str:
@@ -111,3 +111,33 @@ def run_task(project_dir: Path, board: dict, task: dict) -> bool:
         fail_task(board, task["id"], reason)
         save_board(project_dir, board)
         return False
+
+
+def run_loop(project_dir: Path, max_tasks: int = None, callback=None) -> int:
+    """Run tasks in a loop until done, failure, or max_tasks reached."""
+    completed = 0
+
+    while True:
+        if max_tasks and completed >= max_tasks:
+            break
+
+        board = load_board(project_dir)
+        task = get_next_task(board)
+
+        if not task:
+            break
+
+        if callback:
+            callback("start", task)
+
+        success = run_task(project_dir, board, task)
+
+        if callback:
+            callback("complete" if success else "fail", task)
+
+        if success:
+            completed += 1
+        else:
+            break
+
+    return completed

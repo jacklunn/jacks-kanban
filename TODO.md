@@ -24,7 +24,7 @@
 - [x] Unit 4.3: Dashboard command
 
 ## In Progress
+- [ ] Unit 5.1: Create task-schema.md
 
 ## Pending
-- [ ] Unit 5.1: Create task-schema.md
 - [ ] Unit 5.2: Create README.md

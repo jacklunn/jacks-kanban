@@ -1,3 +1,4 @@
+import os
 import shutil
 
 import click
@@ -5,6 +6,7 @@ from importlib import resources
 from pathlib import Path
 
 from jacks_kanban.board import load_board, save_board, get_next_task, get_task, reset_task
+from jacks_kanban.runner import run_loop, run_task
 
 
 @click.group()
@@ -111,6 +113,66 @@ def reset(task_id, reset_all):
     else:
         click.echo("Specify a task_id or use --all", err=True)
         raise SystemExit(1)
+
+
+@main.command()
+@click.option("--loop", "-l", is_flag=True, help="Keep running until failure or done")
+@click.option("--watch", "-w", is_flag=True, help="Run with tmux dashboard")
+@click.option("--max", "max_tasks", type=int, help="Max tasks to run")
+def run(loop, watch, max_tasks):
+    """Run kanban tasks."""
+    project_dir = Path.cwd()
+
+    if watch:
+        launch_watch_mode(project_dir, max_tasks)
+        return
+
+    def log_callback(event, task):
+        if event == "start":
+            click.echo(f"▶ Starting [{task['id']}]: {task['name']}")
+        elif event == "complete":
+            click.echo(f"✓ Completed [{task['id']}]")
+        elif event == "fail":
+            click.echo(f"✗ Failed [{task['id']}]")
+
+    if loop or max_tasks:
+        completed = run_loop(project_dir, max_tasks=max_tasks, callback=log_callback)
+        click.echo(f"\nCompleted {completed} task(s)")
+    else:
+        # Run single task
+        board = load_board(project_dir)
+        task = get_next_task(board)
+        if not task:
+            click.echo("No tasks available")
+            return
+        log_callback("start", task)
+        success = run_task(project_dir, board, task)
+        log_callback("complete" if success else "fail", task)
+
+
+def launch_watch_mode(project_dir: Path, max_tasks: int = None):
+    """Launch tmux with dashboard."""
+    session_name = "kanban"
+    kanban_dir = project_dir / ".kanban"
+
+    # Kill existing session
+    os.system(f"tmux kill-session -t {session_name} 2>/dev/null")
+
+    # Create new session
+    os.system(f"tmux new-session -d -s {session_name} -c {project_dir}")
+    os.system(f"tmux split-window -v -p 30 -t {session_name}")
+
+    # Bottom pane: stream log
+    os.system(f"tmux send-keys -t {session_name}:0.1 'tail -f {kanban_dir}/claude.log | kanban stream-log' C-m")
+
+    # Top pane: run loop
+    loop_cmd = "kanban run --loop"
+    if max_tasks:
+        loop_cmd += f" --max {max_tasks}"
+    os.system(f"tmux send-keys -t {session_name}:0.0 '{loop_cmd}' C-m")
+
+    # Attach
+    os.system(f"tmux attach-session -t {session_name}")
 
 
 if __name__ == "__main__":

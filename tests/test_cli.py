@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 from jacks_kanban.cli import main
@@ -195,3 +196,82 @@ def test_reset_no_args(tmp_path, sample_kanban_yaml):
 
         result = runner.invoke(main, ["reset"])
         assert result.exit_code == 1
+
+
+def test_run_command(tmp_path, sample_kanban_yaml):
+    """Test kanban run executes a single task successfully."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        with patch("jacks_kanban.cli.run_task", return_value=True):
+            result = runner.invoke(main, ["run"])
+
+        assert result.exit_code == 0
+        assert "0.1" in result.output
+        assert "First task" in result.output
+
+
+def test_run_command_no_tasks(tmp_path, sample_kanban_yaml):
+    """Test kanban run when all tasks are completed."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        board = init_board(Path.cwd())
+        complete_task(board, "0.1")
+        complete_task(board, "0.2")
+        complete_task(board, "1.1")
+        save_board(Path.cwd(), board)
+
+        result = runner.invoke(main, ["run"])
+
+        assert result.exit_code == 0
+        assert "No tasks available" in result.output
+
+
+def test_run_command_loop(tmp_path, sample_kanban_yaml):
+    """Test kanban run --loop calls run_loop."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        with patch("jacks_kanban.cli.run_loop", return_value=3) as mock_loop:
+            result = runner.invoke(main, ["run", "--loop"])
+
+        assert result.exit_code == 0
+        assert "3" in result.output
+        mock_loop.assert_called_once()
+
+
+def test_run_command_max(tmp_path, sample_kanban_yaml):
+    """Test kanban run --max passes max_tasks to run_loop."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        with patch("jacks_kanban.cli.run_loop", return_value=2) as mock_loop:
+            result = runner.invoke(main, ["run", "--max", "2"])
+
+        assert result.exit_code == 0
+        mock_loop.assert_called_once()
+        _, kwargs = mock_loop.call_args
+        assert kwargs.get("max_tasks") == 2
+
+
+def test_run_command_watch(tmp_path, sample_kanban_yaml):
+    """Test kanban run --watch calls launch_watch_mode."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        with patch("jacks_kanban.cli.launch_watch_mode") as mock_watch:
+            result = runner.invoke(main, ["run", "--watch"])
+
+        assert result.exit_code == 0
+        mock_watch.assert_called_once()

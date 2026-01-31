@@ -23,8 +23,8 @@
 - [x] Unit 4.2: Stream-log command
 
 ## In Progress
+- [ ] Unit 4.3: Dashboard command
 
 ## Pending
-- [ ] Unit 4.3: Dashboard command
 - [ ] Unit 5.1: Create task-schema.md
 - [ ] Unit 5.2: Create README.md

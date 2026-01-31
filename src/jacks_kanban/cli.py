@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 import click
 from importlib import resources
@@ -9,6 +10,7 @@ from jacks_kanban.board import load_board, save_board, get_next_task, get_task, 
 from jacks_kanban.runner import run_loop, run_task
 from jacks_kanban.sync import sync_board
 from jacks_kanban.stream_log import process_stream
+from jacks_kanban.dashboard import render_dashboard
 
 
 @click.group()
@@ -174,6 +176,23 @@ def run(loop, watch, max_tasks):
 def stream_log():
     """Format claude.log stream for display. Pipe stdin."""
     process_stream()
+
+
+@main.command()
+@click.option("--watch", "-w", is_flag=True, help="Refresh every 2 seconds")
+def dashboard(watch):
+    """Show live dashboard."""
+    project_dir = Path.cwd()
+
+    if watch:
+        try:
+            while True:
+                render_dashboard(project_dir)
+                time.sleep(2)
+        except KeyboardInterrupt:
+            pass
+    else:
+        render_dashboard(project_dir)
 
 
 def launch_watch_mode(project_dir: Path, max_tasks: int = None):

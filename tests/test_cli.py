@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from click.testing import CliRunner
 from jacks_kanban.cli import main
@@ -408,6 +408,36 @@ def test_stream_log_ignores_invalid_json():
     result = runner.invoke(main, ["stream-log"], input=input_lines)
 
     assert result.exit_code == 0
+
+
+def test_dashboard_command(tmp_path, sample_kanban_yaml):
+    """Test kanban dashboard renders without error."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        result = runner.invoke(main, ["dashboard"])
+
+        assert result.exit_code == 0
+        assert "TestProject" in result.output
+
+
+def test_dashboard_command_watch_flag(tmp_path, sample_kanban_yaml):
+    """Test kanban dashboard --watch calls render_dashboard in a loop."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path("kanban.yaml").write_text(sample_kanban_yaml)
+        Path(".kanban").mkdir()
+
+        # Mock time.sleep to raise KeyboardInterrupt after first call
+        # to break the infinite loop
+        with patch("jacks_kanban.cli.time") as mock_time:
+            mock_time.sleep.side_effect = KeyboardInterrupt()
+            result = runner.invoke(main, ["dashboard", "--watch"])
+
+        # Should exit cleanly (KeyboardInterrupt caught)
+        assert result.exit_code == 0
 
 
 def test_stream_log_other_tool():

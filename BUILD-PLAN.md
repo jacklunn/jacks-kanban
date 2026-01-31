@@ -118,7 +118,7 @@ packages = ["src/jacks_kanban"]
 
 ---
 
-### Unit 0.2: Create templates directory
+### Unit 0.2: [DONE] Create templates directory
 
 Create the starter templates that `kanban init` will copy.
 

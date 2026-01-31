@@ -2,11 +2,11 @@
 
 ## Completed
 - [x] Unit 0.1: Initialize Python package
+- [x] Unit 0.2: Create templates directory
 
 ## In Progress
 
 ## Pending
-- [ ] Unit 0.2: Create templates directory
 - [ ] Unit 0.3: Create test infrastructure
 - [ ] Unit 1.1: Load kanban.yaml
 - [ ] Unit 1.2: Initialize board.json

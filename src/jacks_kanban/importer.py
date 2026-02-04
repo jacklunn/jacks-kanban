@@ -94,6 +94,7 @@ def execute_claude_import(prompt: str, project_dir: Path) -> tuple[str, dict]:
         "claude",
         "-p", prompt,
         "--output-format", "stream-json",
+        "--verbose",
     ]
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:

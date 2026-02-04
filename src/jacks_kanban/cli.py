@@ -11,6 +11,7 @@ from jacks_kanban.runner import run_loop, run_task
 from jacks_kanban.sync import sync_board
 from jacks_kanban.stream_log import process_stream
 from jacks_kanban.dashboard import render_dashboard
+from jacks_kanban.importer import import_plan
 
 
 @click.group()
@@ -315,6 +316,75 @@ def list_modules():
         except Exception as e:
             click.echo(f"  {config_path.name} (error: {e})")
             click.echo()
+
+
+@main.command("import-plan")
+@click.argument("plan_file", type=click.Path(exists=True))
+@click.option("--output", "-o", "output_file", type=click.Path(),
+              help="Write output to this file instead of stdout")
+@click.option("--project", "-p", "project_name",
+              help="Project name for the generated config")
+@click.option("--append", "-a", "append_to", type=click.Path(exists=True),
+              help="Append generated tasks to an existing kanban file")
+def import_plan_cmd(plan_file, output_file, project_name, append_to):
+    """Convert a plan document into kanban tasks using Claude.
+
+    Reads a plan/design document and uses Claude to generate properly
+    formatted kanban.yaml task definitions.
+
+    \b
+    Examples:
+        # Output to stdout for review
+        kanban import-plan docs/my-design.md
+
+        # Save directly to a file
+        kanban import-plan docs/my-design.md --output kanban-feature.yaml
+
+        # Specify project name
+        kanban import-plan docs/auth-design.md -p AuthModule -o kanban-auth.yaml
+
+        # Append tasks to existing board
+        kanban import-plan docs/new-features.md --append kanban.yaml
+    """
+    project_dir = Path.cwd()
+    plan_path = Path(plan_file)
+
+    output_path = Path(output_file) if output_file else None
+    append_path = Path(append_to) if append_to else None
+
+    click.echo(f"Importing plan from {plan_file}...", err=True)
+    click.echo("(This calls Claude to analyze and convert the document)", err=True)
+    click.echo("", err=True)
+
+    try:
+        yaml_content, tokens = import_plan(
+            plan_path=plan_path,
+            project_dir=project_dir,
+            project_name=project_name,
+            output_path=output_path,
+            append_to=append_path,
+        )
+
+        if output_path:
+            click.echo(f"Wrote {output_path}", err=True)
+        elif append_path:
+            click.echo(f"Appended tasks to {append_path}", err=True)
+        else:
+            # Output to stdout
+            click.echo(yaml_content)
+
+        # Show token usage
+        if tokens:
+            cost = tokens.get("cost_usd", 0)
+            click.echo("", err=True)
+            click.echo(f"Tokens: {tokens.get('input_tokens', 0)} in / {tokens.get('output_tokens', 0)} out | Cost: ${cost:.4f}", err=True)
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
+    except Exception as e:
+        click.echo(f"Error during import: {e}", err=True)
+        raise SystemExit(1)
 
 
 def launch_watch_mode(project_dir: Path, board_file: str = "kanban.yaml", max_tasks: int = None):
